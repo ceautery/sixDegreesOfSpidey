@@ -1,0 +1,25 @@
+{
+  "name": "spidey",
+  "version": "1.0.0",
+  "description": "Like \"Six Degrees of Kevin Bacon\"... but with Spider-Man",
+  "main": "spidey.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "body-parser": "^1.15.0",
+    "express": "^4.13.4",
+    "request": "^2.69.0",
+    "sqlite3": "^3.1.1"
+  },
+  "devDependencies": {
+    "mocha": "^2.4.5"
+  },
+  "scripts": {
+    "test": "mocha",
+    "postinstall": "node init_db.js",
+    "start": "node spidey.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
