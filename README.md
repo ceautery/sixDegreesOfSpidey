@@ -20,7 +20,7 @@ tar zxvf spidey.tgz
 npm install
 ls node_modules
 ```
-(Verify the subdirectories body-parser, express, mocha, request, and sqlite3 all exist)
+(Verify the subdirectories angular, body-parser, bootstrap, chai, express, jquery, mocha, request, and sqlite3 all exist)
 ```
 npm test
 npm start
@@ -59,7 +59,7 @@ What makes a character usable is having it appear in comics in the database. Rou
 
 What makes a comic useful is having more than one character appearing in it. Searching for some characters, Spider-Man included, returns comics that contain only one character. This may account for early issues, where a hero stops some bank robberies by one-dimensional villains that don't repeat. Another similar oddity are comics with vague ownership, such as the Eclipse comic Miracleman. There is at least one Neil Gaiman issue of that in the Marvel API showing 0 characters, e.g., the comic is in the API, but the character is not.
 
-These combine to make certain types of searches more expensive, and the most attractice search being /characters/{id}/comics, which returns a list of comics where a given character appears. The converse, /comics/{id}/characters, is more limited in utility, and likely to give you no usable information. Since there are tens of thousands of comic issues in the database, we should avoid querying them one at a time.
+These combine to make certain types of searches more expensive, and the most attractive search being /characters/{id}/comics, which returns a list of comics where a given character appears. The converse, /comics/{id}/characters, is more limited in utility, and likely to give you no usable information. Since there are tens of thousands of comic issues in the database, we should avoid querying them one at a time.
 
 - Marvel bugs
 

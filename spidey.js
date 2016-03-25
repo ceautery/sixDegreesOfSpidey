@@ -60,12 +60,14 @@ app.post('/find', function (req, res) {
 	});
 });
 
+exports.state = { started: false }
 findHops(startListener);
 
 function startListener() {
 	app.listen(3000, function () {
 	  console.log('Connect to http://localhost:3000 to begin');
 	});
+	exports.state.started = true;
 }
 
 function findHops(cbk, include, filter) {
