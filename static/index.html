@@ -1,1 +1,74 @@
-<html><body>test</body></html>
+<!doctype html>
+<html ng-app="spidey">
+	<head>
+		<meta charset="utf-8">
+		<link rel="stylesheet" type="text/css" href="/bootstrap/css/bootstrap.min.css"/>
+		<title>Six Degrees of Spider-Man</title>
+		<script src="/jquery/jquery.min.js"></script>
+		<script src="/bootstrap/js/bootstrap.min.js"></script>
+		<script src="/angular/angular.min.js"></script>
+		<script src="/spidey-client.js"></script>
+	</head>
+	<body ng-controller="Controller">
+
+	<nav class="navbar navbar-default navbar-static-top">
+		<div class="container">
+			<div class="navbar-header">
+				<a class="navbar-brand" href="#">Six Degrees of Spider-Man</a>
+			</div>
+			<div id="navbar" class="navbar-collapse collapse">
+				<ul class="nav navbar-nav navbar-right">
+					<li class="dropdown">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Choose a character <span class="caret"></span></a>
+						<ul class="dropdown-menu" style="height:500px; overflow:scroll">
+							<li ng-repeat="c in characters"> <a ng-click="find(c.id, $index)">{{c.name}}</a></li>
+						</ul>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<div class="container">
+		<div class="jumbotron" ng-hide="selected">
+			<h2>Have we met?</h2>
+			<p>A large number of Marvel Universe characters have had a shared appearance with Spider-Man in a comic book
+			 issue. Some characters, however, travel in different circles, but may have appeared in a comic with another
+			 character who <i>has</i> appeared with Spider-Man, or appeared in a comic with a character who appeared in
+			 a comic with a character...</p>
+			<p>To see how many degrees of separation a character has had with Spider-Man, select him/her from the dropdown
+			 menu above and click search!</p>
+		</div>
+
+		<div class="jumbotron" ng-show="selected">
+			<h2 style="text-align: center;">{{selected.name}}<span ng-show="path.length"> has a Spidey number of {{path.length}}</span></h2>
+			<p ng-show="path.length == 0">
+				I can't find a path between {{selected.name}} and Spider-Man
+			</p>
+
+			<p ng-if="selected.name == 'Spider-Man'">
+				<img ng-src="{{spidey.img}}">
+			</p>
+
+			<div class="row" ng-repeat="p in path">
+				<div class="col-md-4">
+					<h3>{{p.character.name}}</h3>
+					<img ng-src="{{p.character.img}}">
+				</div>
+				<div class="col-md-4">
+					<h3>{{p.comic.title}}</h3>
+					<img ng-src="{{p.comic.img}}">
+				</div>
+				<div class="col-md-4" ng-if="p.link.name">
+					<h3>{{p.link.name}}</h3>
+					<img ng-src="{{p.link.img}}">
+				</div>
+				<div class="col-md-4" ng-if="p.link == spidey.id">
+					<h3>{{spidey.name}}</h3>
+					<img ng-src="{{spidey.img}}">
+				</div>
+			</div>
+		</div>
+	</div>
+	</body>
+</html>

@@ -9,15 +9,18 @@ var crypto  = require('crypto'),
     sqlite3 = require('sqlite3'),
     db = new sqlite3.Database(path.join(__dirname, 'data', 'spidey.db')),
     spideyCharNum = 1009610,
-    hops = [],
+    hops = [], comicList = [],
 	u = new Uniq(),
 	allStop = false; // Calls per day limit exceeded, stop all requests until node app is restarted
 
 app.use(express.static('static'));
+app.use('/jquery', express.static(path.join(__dirname, 'node_modules', 'jquery', 'dist')));
+app.use('/bootstrap', express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
+app.use('/angular', express.static(path.join(__dirname, 'node_modules', 'angular')));
 app.use(bodyParser.json());
 
 app.post('/characters', function(req, res) {
-	db.all('select * from characters', function(err, rows) {
+	db.all('select * from characters order by name asc', function(err, rows) {
 		if (err) {
 			res.status(500).send('Error retrieving characters');
 			return;
@@ -57,8 +60,7 @@ app.post('/find', function (req, res) {
 	});
 });
 
-hops = [];
-findHops(spideyCharNum, spideyCharNum, startListener);
+findHops(startListener);
 
 function startListener() {
 	app.listen(3000, function () {
@@ -66,11 +68,15 @@ function startListener() {
 	});
 }
 
-function findHops(include, filter, cbk) {
+function findHops(cbk, include, filter) {
+	if (!include) {
+		hops = [];
+		include = filter = spideyCharNum
+	}
+
 	var ndx = hops.length;
 	if (ndx == 5) {
-		console.log(hops);
-		console.log(hops.reduce(function(a, b) { return a + b.length }, 0));
+		console.log('Found ' + hops.reduce(function(a, b) { return a + b.length }, 0) + ' characters');
 		cbk();
 		return;
 	}
@@ -87,11 +93,11 @@ function findHops(include, filter, cbk) {
 		hops[ndx] = rows;
 		include = rows.map(function(r) { return r.character}).join(',');
 		filter = filter + ',' + include;
-		findHops(include, filter, cbk)
+		findHops(cbk, include, filter)
 	})
 }
 
-function find(character, res) {
+function find(character, res, repeat) {
 	var ndx = 0;
 	while (ndx < 5) {
 		var obj = hops[ndx].filter(function(r) { return r.character == character });
@@ -109,12 +115,40 @@ function find(character, res) {
 		ndx++;
 	}
 
-	// Character not found locally, go query Marvel
+	if (repeat) {
+		res.json([]); // No path found
+		return
+	}
+
+	var count = 0;
+	db.get('select count(*) as count from pairings where character = ?', character, function(err, row) {
+		/*
+		 *  Having exactly 20 pairings for a character implies there may be more to download, as this is the default
+		 *  comic limit when fetching /character from the Marvel API. On first init, there should be about 350
+		 *  characters that have more appearances than I've downloaded.
+		 *
+		 *  A count of less that 20 means the character has had fewer than 20 appearances, more than 20 means I've
+		 *  already fetched for this character before.
+		 */
+		if (err || row.count != 20) {
+			res.json([]);
+			return
+		}
+
+		askMarvel(character, res, rebuildHops);
+	});
+
+	function rebuildHops() {
+		findHops(findAgain)
+	}
+
+	function findAgain() {
+		find(character, res, true)
+	}
 }
 
 function addDetails(obj, res) {
-	console.log(obj);
-
+	obj = JSON.parse(JSON.stringify(obj)); // Clone to prevent changed original hops objects
 	obj.remaining = obj.length * 2;
 	obj.forEach(function(pair) {
 		getCharacter(obj, pair, res);
@@ -178,53 +212,60 @@ function Uniq() {
 }
 
 
-function askMarvel(character, res, offset, callback){
-	console.log([character, offset]);
-	var qs = u.get(offset, 100);
+function askMarvel(character, res, callback){
+	var comicList = [],
+		stop = false;
 
-	qs.format = 'comic';
-	qs.formatType = 'comic';
-	qs.noVariants = true;
-	if (!all) qs.limit = 1;
-	if (!allStop && !stop) request({
-		url: base + 'characters/' + character + '/comics',
-		json: true,
-		qs: qs
-	}, function(err, resp) {
-		if (!err && resp && resp.body && resp.body.data) {
-			var comics = resp.body.data.results || [];
-			comics.forEach(function(comic) {
-				var c = {
-					id: comic.id,
-					title: comic.title
-				};
-				if (comic.images && comic.images.length) {
-					c.img_path  = comic.images[0].path;
-					c.extension = comic.images[0].extension;
-				} // todo: else fetch the first URL returned, and search for img.frame-img
-				out.push(c);
-			});
-			if (all && offset == null && resp.body.data.total) {
-				var count = +resp.body.data.total;
-				console.error("Trying for " + count + " comics");
-				offset = 100;
-				res.remaining = (count / offset | 0) - 1;
-				while (offset < count) {
-					askMarvel(character, res, offset, callback);
-					offset += 100;
+	fetch(0);
+
+	function fetch(offset) {
+		console.log([character, offset]);
+		var qs = u.get(offset, 100);
+
+		qs.format = 'comic';
+		qs.formatType = 'comic';
+		qs.noVariants = true;
+		if (!allStop && !stop) request({
+			url: base + 'characters/' + character + '/comics',
+			json: true,
+			qs: qs
+		}, function (err, resp) {
+			checkError(err);
+			if (!err && resp && resp.body && resp.body.data) {
+				var comics = resp.body.data.results || [];
+				comics.forEach(function (comic) {
+					var c = {
+						id: comic.id,
+						title: comic.title
+					};
+					if (comic.images && comic.images.length) {
+						c.img_path = comic.images[0].path;
+						c.extension = comic.images[0].extension;
+					} else {
+						console.log(comic);
+					}
+					comicList.push(c);
+				});
+				if (!offset && resp.body.data.total) {
+					var count = +resp.body.data.total;
+					console.log("Trying for " + count + " comics");
+					offset = 100;
+					res.remaining = (count / offset | 0);
+					while (offset < count) {
+						fetch(offset);
+						offset += 100;
+					}
 				}
+				if (res.remaining) res.remaining--;
+				if (!res.remaining) {
+					insertComicsForCharacter(character, comicList, callback);
+				}
+			} else {
+				stop = true;
+				res.status(500).send(resp);
 			}
-			if (res.remaining) res.remaining--;
-			if (!res.remaining) {
-				insert(out);
-				callback(out, res);
-			}
-		} else {
-			// todo: check to see if error is due to exceeding 3000 reqs per day
-			stop = true;
-			res.status(500).send(resp);
-		}
-	});
+		});
+	}
 }
 
 function fetchSingleComic(pair, res, cbk) {
@@ -257,6 +298,27 @@ function fetchSingleComic(pair, res, cbk) {
 			, pair.comic.id, pair.comic.title, pair.comic.img_path, pair.comic.extension, cbk)
 	})
 }
+
+function insertComicsForCharacter(charID, comics, cbk) {
+	comics.remaining = comics.length * 2;
+
+	stmt = db.prepare('INSERT OR REPLACE INTO comics VALUES (?, ?, ?, ?)');
+	comics.forEach(function(comic) {
+		stmt.run(comic.id, comic.title, comic.img_path, comic.extension, decrement)
+	});
+	stmt.finalize();
+
+	stmt = db.prepare('INSERT OR REPLACE INTO pairings VALUES (?, ?)');
+	comics.forEach(function(comic) {
+		stmt.run(charID, comic.id, decrement);
+	});
+	stmt.finalize();
+
+	function decrement() {
+		if (--comics.remaining == 0) cbk();
+	}
+}
+
 
 function checkError(err) {
 	/*

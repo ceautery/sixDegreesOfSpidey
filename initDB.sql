@@ -20,5 +20,6 @@ drop table if exists "pairings";
 create table "pairings"
 (
 	character  integer,
-	comic      integer
+	comic      integer,
+	CONSTRAINT pk PRIMARY KEY (character, comic)
 );

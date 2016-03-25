@@ -15,9 +15,9 @@ chars.forEach(function(char) {
 });
 stmt.finalize();
 
-characterInsert(1009610, 'Spider-Man', 'spidey_comics.json');
-characterInsert(1009368, 'Iron Man', 'ironman_comics.json');
-characterInsert(1009718, 'Wolverine', 'wolverine_comics.json');
+insertComicsForCharacter(1009610, 'spidey_comics.json');
+insertComicsForCharacter(1009368, 'ironman_comics.json');
+insertComicsForCharacter(1009718, 'wolverine_comics.json');
 
 stmt = db.prepare('INSERT INTO pairings VALUES (?, ?)');
 pairings.forEach(function(pair) {
@@ -25,7 +25,7 @@ pairings.forEach(function(pair) {
 });
 stmt.finalize();
 
-function characterInsert(charID, name, fileName) {
+function insertComicsForCharacter(charID, fileName) {
     var normalized = path.join(__dirname, 'data', fileName),
         comics = JSON.parse(fs.readFileSync(normalized, 'utf8'));
 
@@ -35,7 +35,7 @@ function characterInsert(charID, name, fileName) {
     });
     stmt.finalize();
     
-    stmt = db.prepare('INSERT INTO pairings VALUES (?, ?)');
+    stmt = db.prepare('INSERT OR REPLACE INTO pairings VALUES (?, ?)');
     comics.forEach(function(comic) {
         stmt.run(charID, comic.id);
     });
